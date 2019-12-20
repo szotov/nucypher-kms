@@ -33,6 +33,7 @@ from nucypher.crypto.signing import SignatureStamp
 
 
 DISABLE_RE_STAKE_FIELD = 3
+WIND_DOWN_FIELD = 10
 
 DISABLED_FIELD = 5
 
@@ -422,6 +423,9 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(preallocation_escrow_2.address, 6).call()
     assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_2.address, 7).call()
     assert 0 == escrow.functions.getCompletedWork(preallocation_escrow_2.address).call()
+    tx = preallocation_escrow_interface_2.functions.setWindDown(True).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(preallocation_escrow_interface_2.address).call()[WIND_DOWN_FIELD]
 
     # Another Ursula claims tokens
     tx = worklock.functions.claim().transact({'from': ursula4, 'gas_price': 0})
@@ -530,6 +534,9 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setReStake(False).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(ursula1).call()[WIND_DOWN_FIELD]
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     escrow_balance += 1000
@@ -546,6 +553,9 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWorker(ursula3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.stakerInfo(preallocation_escrow_interface_1.address).call()[WIND_DOWN_FIELD]
     tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     escrow_balance += 1000
