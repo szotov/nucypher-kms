@@ -787,7 +787,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def _set_restaking_value(self, value: bool) -> dict:
+    def _set_restaking(self, value: bool) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_restaking(value=value)
         else:
@@ -795,7 +795,7 @@ class Staker(NucypherTokenActor):
         return receipt
 
     def enable_restaking(self) -> dict:
-        receipt = self._set_restaking_value(value=True)
+        receipt = self._set_restaking(value=True)
         return receipt
 
     @only_me
@@ -818,7 +818,7 @@ class Staker(NucypherTokenActor):
         return status
 
     def disable_restaking(self) -> dict:
-        receipt = self._set_restaking_value(value=False)
+        receipt = self._set_restaking(value=False)
         return receipt
 
     @property
@@ -828,7 +828,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def _set_winding_down_value(self, value: bool) -> dict:
+    def _set_winding_down(self, value: bool) -> dict:
         if self.is_contract:
             receipt = self.preallocation_escrow_agent.set_winding_down(value=value)
         else:
@@ -836,11 +836,11 @@ class Staker(NucypherTokenActor):
         return receipt
 
     def enable_winding_down(self) -> dict:
-        receipt = self._set_winding_down_value(value=True)
+        receipt = self._set_winding_down(value=True)
         return receipt
 
     def disable_winding_down(self) -> dict:
-        receipt = self._set_winding_down_value(value=False)
+        receipt = self._set_winding_down(value=False)
         return receipt
 
     #
