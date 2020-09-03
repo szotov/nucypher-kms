@@ -28,13 +28,16 @@ import sys
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
+
+from nucypher.blockchain.eth.deployers import WorklockDeployer
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from unittest.mock import Mock
 from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, \
+    WorkLockAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
@@ -159,15 +162,27 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
     os.environ['GAS_ESTIMATOR_BACKEND_FUNC'] = 'eth.estimators.gas.binary_gas_search_exact'
 
+    start_bid_date = int(time.time())
+    end_bid_date = start_bid_date + 60 * 60
+    end_cancellation_date = end_bid_date
     # Blockchain
     economics = StandardTokenEconomics(
         base_penalty=MIN_ALLOWED_LOCKED - 1,
         penalty_history_coefficient=0,
         percentage_penalty_coefficient=2,
-        reward_coefficient=2
+        reward_coefficient=2,
+        worklock_supply=2 * MIN_ALLOWED_LOCKED,
+        bidding_start_date=start_bid_date,
+        bidding_end_date=end_bid_date,
+        cancellation_end_date=end_cancellation_date
     )
     testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
     web3 = testerchain.w3
+
+    worklock_deployer = WorklockDeployer(registry=registry,
+                                         economics=economics,
+                                         deployer_address=testerchain.etherbase_account)
+    worklock_deployer.deploy()
 
     print("\n********* SIZE OF MAIN CONTRACTS *********")
     MAX_SIZE = 24576
@@ -186,7 +201,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     print(tabulate.tabulate(rows, headers=headers, tablefmt="simple"), end="\n\n")
 
     # Accounts
-    origin, staker1, staker2, staker3, staker4, alice1, alice2, *everyone_else = testerchain.client.accounts
+    origin, staker1, staker2, staker3, staker4, staker5, alice1, alice2, *everyone_else = testerchain.client.accounts
 
     ursula_with_stamp = mock_ursula(testerchain, staker1)
 
@@ -195,12 +210,14 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     staking_agent = StakingEscrowAgent(registry=registry)
     policy_agent = PolicyManagerAgent(registry=registry)
     adjudicator_agent = AdjudicatorAgent(registry=registry)
+    worklock_agent = WorkLockAgent(registry=registry)
 
     # Contract Callers
     token_functions = token_agent.contract.functions
     staker_functions = staking_agent.contract.functions
     policy_functions = policy_agent.contract.functions
     adjudicator_functions = adjudicator_agent.contract.functions
+    worklock_functions = worklock_agent.contract.functions
 
     analyzer.start_collection()
     print("********* Estimating Gas *********")
@@ -216,6 +233,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         transaction.update(gas=1000000)
         tx = function.transact(transaction)
         testerchain.wait_for_receipt(tx)
+
+    # Measuring work
+    staker5_bid = economics.worklock_min_allowed_bid
+    tx = testerchain.w3.eth.sendTransaction(
+        {'from': testerchain.etherbase_account, 'to': staker1, 'value': 2 * staker5_bid})
+    testerchain.wait_for_receipt(tx)
+    transact(worklock_functions.bid(), {'from': staker5, 'value': staker5_bid})
+    testerchain.time_travel(periods=1)
+    transact(worklock_functions.verifyBiddingCorrectness(100_000), {'from': origin, 'gas': 1_000_000})
+    transact(worklock_functions.claim(), {'from': staker5})
 
     #
     # Give Ursula and Alice some coins
@@ -278,12 +305,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.bondWorker(staker1), {'from': staker1})
     transact(staker_functions.bondWorker(staker2), {'from': staker2})
     transact(staker_functions.bondWorker(staker3), {'from': staker3})
+    transact(staker_functions.bondWorker(staker5), {'from': staker5})
     transact(staker_functions.setReStake(False), {'from': staker1})
     transact(staker_functions.setReStake(False), {'from': staker2})
     transact(staker_functions.setWindDown(True), {'from': staker1})
     transact(staker_functions.setWindDown(True), {'from': staker2})
+    transact(staker_functions.setWindDown(True), {'from': staker5})
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
     transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
     # Wait 1 period and make a commitment
@@ -291,6 +321,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     transact_and_log("Make a commitment, first", staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Make a commitment, other", staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
     # Wait 1 period and mint tokens
@@ -301,6 +332,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("Make a commitment again, first", staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Make a commitment again, other", staker_functions.commitToNextPeriod(), {'from': staker2})
     transact(staker_functions.commitToNextPeriod(), {'from': staker3})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
     # Commit again
@@ -308,6 +340,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     transact_and_log("Make a commitment + mint, first", staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Make a commitment + mint, other", staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
     # Create policy
@@ -353,6 +386,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("Make a commitment + mint + re-stake + first fee + first fee rate",
                      staker_functions.commitToNextPeriod(),
                      {'from': staker1})
+    transact_and_log("Make a commitment + mint + re-stake + measure work",
+                     staker_functions.commitToNextPeriod(),
+                     {'from': staker5})
 
     transact(staker_functions.setReStake(False), {'from': staker1})
     transact(staker_functions.setReStake(False), {'from': staker2})
