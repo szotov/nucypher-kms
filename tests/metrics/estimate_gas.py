@@ -327,19 +327,21 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Minting (1 stake), first", staker_functions.mint(), {'from': staker1})
-    transact_and_log("Minting (1 stake), other", staker_functions.mint(), {'from': staker2})
+    transact_and_log("Minting (1 stake, 1 period), first", staker_functions.mint(0), {'from': staker1})
+    transact_and_log("Minting (1 stake, 1 period), other", staker_functions.mint(0), {'from': staker2})
     transact_and_log("Make a commitment again, first", staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Make a commitment again, other", staker_functions.commitToNextPeriod(), {'from': staker2})
     transact(staker_functions.commitToNextPeriod(), {'from': staker3})
     transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
-    # Commit again
+    # Mint again
     #
     testerchain.time_travel(periods=1)
-    transact_and_log("Make a commitment + mint, first", staker_functions.commitToNextPeriod(), {'from': staker1})
-    transact_and_log("Make a commitment + mint, other", staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact_and_log("Minting again (1 stake, 1 period), first", staker_functions.mint(0), {'from': staker1})
+    transact_and_log("Minting again (1 stake, 1 period), other", staker_functions.mint(0), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker2})
     transact(staker_functions.commitToNextPeriod(), {'from': staker5})
 
     #
@@ -377,19 +379,23 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setReStake(True), {'from': staker1})
     transact(staker_functions.setReStake(True), {'from': staker2})
 
-    # Used to remove spending for first call in a day for mint and commitToNextPeriod
-    transact(staker_functions.commitToNextPeriod(), {'from': staker3})
+    # Used to remove spending for first call in a day for mint
+    transact(staker_functions.mint(0), {'from': staker3})  # TODO AAAAAA
 
-    transact_and_log("Make a commitment + mint + re-stake",
-                     staker_functions.commitToNextPeriod(),
+    transact_and_log("Mint + re-stake (1 stake, 1 period)",
+                     staker_functions.mint(0),
                      {'from': staker2})
-    transact_and_log("Make a commitment + mint + re-stake + first fee + first fee rate",
-                     staker_functions.commitToNextPeriod(),
+    transact_and_log("Mint + re-stake (1 stake, 1 period) + first fee + first fee rate",
+                     staker_functions.mint(0),
                      {'from': staker1})
-    transact_and_log("Make a commitment + mint + re-stake + measure work",
-                     staker_functions.commitToNextPeriod(),
+    transact_and_log("Mint + re-stake (1 stake, 1 period) + measure work",
+                     staker_functions.mint(0),
                      {'from': staker5})
 
+    transact(staker_functions.commitToNextPeriod(), {'from': staker3})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker5})
     transact(staker_functions.setReStake(False), {'from': staker1})
     transact(staker_functions.setReStake(False), {'from': staker2})
 
@@ -398,9 +404,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=2)
     transact(staker_functions.commitToNextPeriod(), {'from': staker3})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Make a commitment after downtime", staker_functions.commitToNextPeriod(), {'from': staker2})
-    transact_and_log("Make a commitment after downtime + updating fee",
-                     staker_functions.commitToNextPeriod(),
+
+    transact(staker_functions.mint(0), {'from': staker3})
+    transact_and_log("Mint + re-stake (1 stake, 2 periods)",
+                     staker_functions.mint(0),
+                     {'from': staker2})
+    transact_and_log("Mint + re-stake (1 stake, 2 periods) + updating fee",
+                     staker_functions.mint(0),
                      {'from': staker1})
 
     #
@@ -446,9 +458,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    transact(staker_functions.mint(), {'from': staker3})
-    transact_and_log("Last minting + updating fee + updating fee rate", staker_functions.mint(), {'from': staker1})
-    transact_and_log("Last minting + first fee + first fee rate", staker_functions.mint(), {'from': staker2})
+    transact(staker_functions.mint(0), {'from': staker3})
+    transact_and_log("Mint (1 stake, 1 period) + updating fee + updating fee rate", staker_functions.mint(0), {'from': staker1})
+    transact_and_log("Mint (1 stake, 1 period) + first fee + first fee rate", staker_functions.mint(0), {'from': staker2})
 
     #
     # Create policy again without pre-committed nodes
@@ -481,9 +493,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.commitToNextPeriod(), {'from': staker3})
 
     testerchain.time_travel(periods=2)
-    transact(staker_functions.mint(), {'from': staker3})
-    transact_and_log("Last minting after downtime + updating fee",
-                     staker_functions.mint(),
+    transact(staker_functions.mint(0), {'from': staker3})
+    transact_and_log("Mint after downtime (1 stake, 1 period) + updating fee",
+                     staker_functions.mint(0),
                      {'from': staker1})
 
     testerchain.time_travel(periods=10)
@@ -500,7 +512,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     for index in range(5):
         transact(staker_functions.commitToNextPeriod(), {'from': staker1})
         testerchain.time_travel(periods=1)
-    transact(staker_functions.mint(), {'from': staker1})
+    transact(staker_functions.mint(0), {'from': staker1})
 
     #
     # Check regular deposit
@@ -516,7 +528,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # ApproveAndCall
     #
     testerchain.time_travel(periods=1)
-    transact(staker_functions.mint(), {'from': staker1})
+    transact(staker_functions.mint(0), {'from': staker1})
 
     transact_and_log("ApproveAndCall",
                      token_functions.approveAndCall(staking_agent.contract_address,
@@ -614,7 +626,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     slashing_args = generate_args_for_slashing(ursula_with_stamp, corrupt_cfrag=False)
     transact_and_log("Evaluating correct CFrag", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
 
-    transact_and_log("Prolong stake", staker_functions.prolongStake(0, 20), {'from': staker1})
+    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())  # TODO only active
+    transact_and_log(f"Mint ({sub_stakes_length} stakes, 19 periods) + updating fee",
+                     staker_functions.mint(0),
+                     {'from': staker1})
+
+    transact_and_log("Prolong stake", staker_functions.prolongStake(4, 30), {'from': staker1})  # TODO
     transact_and_log("Merge sub-stakes", staker_functions.mergeStake(2, 3), {'from': staker1})
 
     # Large number of sub-stakes
@@ -628,8 +645,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                            current_period + 100),
              {'from': origin})
     transact(staker_functions.bondWorker(staker4), {'from': staker4})
-    transact(staker_functions.setWindDown(True), {'from': staker4})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker4})
 
+    testerchain.time_travel(periods=1)
     # Used to remove spending for first call in a day for mint and commitToNextPeriod
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
 
@@ -638,15 +656,29 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': staker4})
 
     testerchain.time_travel(periods=1)
-    transact(staker_functions.commitToNextPeriod(), {'from': staker4})
-    testerchain.time_travel(periods=1)
+    transact(staker_functions.setWindDown(True), {'from': staker4})
 
     # Used to remove spending for first call in a day for mint and commitToNextPeriod
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
 
-    transact_and_log(f"Make a commitment + mint + re-stake ({number_of_sub_stakes} sub-stakes)",
+    transact_and_log(f"Make a commitment ({number_of_sub_stakes} sub-stakes) + wind down",
                      staker_functions.commitToNextPeriod(),
                      {'from': staker4})
+
+    # Mint once per x periods
+    number_of_periods = 7
+    for index in range(number_of_periods):
+        transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+        testerchain.time_travel(periods=1)
+
+    transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+    testerchain.time_travel(periods=1)
+    transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.setReStake(True), {'from': staker2})
+    sub_stakes_length = str(staker_functions.getSubStakesLength(staker2).call())
+    transact_and_log(f"Mint ({sub_stakes_length} stakes, {number_of_periods} periods) + re-stake + updating fee",
+                     staker_functions.mint(0),
+                     {'from': staker2})
 
     print("********* All Done! *********")
 

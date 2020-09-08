@@ -370,7 +370,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Reward is not locked and stake is not changed
     assert sub_stake < escrow.functions.getAllTokens(staker).call()
@@ -408,6 +408,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert period + 6 == event_args['lockUntilPeriod']
 
     # Make a commitment and try to mint with re-stake
+    tx = escrow.functions.mint(0).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -416,7 +418,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
     balance = escrow.functions.getAllTokens(staker).call()
@@ -434,7 +436,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     # Entire reward is locked
     balance = escrow.functions.getAllTokens(staker).call()
@@ -487,9 +489,9 @@ def test_re_stake(testerchain, token, escrow_contract):
     # Compare minting with re-stake and without for two surpassed periods
     # The first is Ursula2 because of Ursula1's re-stake will change sub stake ratio for `period - 1`
     # (stake/lockedPerPeriod) and it will affect next minting
-    tx = escrow.functions.mint().transact({'from': staker2})
+    tx = escrow.functions.mint(0).transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     ursula_reward = escrow.functions.getAllTokens(staker).call() - stake
     ursula2_reward = escrow.functions.getAllTokens(staker2).call() - stake
@@ -522,6 +524,8 @@ def test_re_stake(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Make a commitment and try to mint without re-stake
+    tx = escrow.functions.mint(0).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -545,7 +549,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.getLockedTokens(staker, 0).call()
     assert sub_stake == escrow.functions.getAllTokens(staker).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
 
     # Reward is not locked and stake is not changed

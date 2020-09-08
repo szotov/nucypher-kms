@@ -217,7 +217,7 @@ contract StakingInterface is BaseStakingInterface {
     * @notice Mint tokens in the staking escrow
     */
     function mint() public onlyDelegateCall {
-        escrow.mint();
+        escrow.mint(0);
         emit Minted(msg.sender);
     }
 

@@ -23,7 +23,7 @@ from web3.contract import Contract
 
 MAX_SUB_STAKES = 30
 MAX_UINT16 = 65535
-LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
+LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 3
 
 
 def test_staking(testerchain, token, escrow_contract):
@@ -730,7 +730,7 @@ def test_increase_lock(testerchain, token, escrow_contract, token_economics):
     assert escrow.functions.getSubStakesLength(staker).call() == 3
     stake += minimum_allowed_locked
 
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
 
     tx = escrow.functions.deposit(staker, minimum_allowed_locked, 3 * minimum_locked_periods).transact({'from': staker})
@@ -940,6 +940,8 @@ def test_merge(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
+    tx = escrow.functions.mint(0).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     duration_2 -= 3
@@ -1003,7 +1005,7 @@ def test_merge(testerchain, token, escrow_contract, token_economics):
     assert escrow.functions.getLastPeriodOfSubStake(staker, 2).call() == current_period + duration_2
 
     # One of the sub-stake become inactive after minting
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(staker, minimum_allowed_locked, duration_2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
@@ -1095,7 +1097,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.mint().transact({'from': staker})
+    tx = escrow.functions.mint(0).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(staker, 100, 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
